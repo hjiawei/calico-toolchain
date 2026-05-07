@@ -136,11 +136,15 @@ blocks:
             # depends on. A trivial smoke does NOT exercise the wasm-side
             # libc/libc++ ABI; this acid does. Catches TinyGo or wasi-libc
             # bumps that break downstream WAF consumers.
+            # The Makefile builds the image as tinygo:latest-amd64 locally
+            # before retagging it as calico/tinygo:${branch}-amd64 for the
+            # registry. Use the local tag here — calico/tinygo:latest-amd64
+            # does not exist (registry retag uses branch, not "latest").
             - |
               docker run --rm \
                 -v "$(pwd)/images/calico-tinygo/test/wasm-acid:/src" \
                 -w /src \
-                calico/tinygo:latest-amd64 \
+                tinygo:latest-amd64 \
                 sh -c 'go mod download && \
                   tinygo build \
                     -target=wasip1 \
