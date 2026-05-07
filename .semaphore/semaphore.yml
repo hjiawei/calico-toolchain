@@ -127,19 +127,15 @@ blocks:
               export CALICO_TINYGO_IMAGETAG=${SEMAPHORE_GIT_WORKING_BRANCH}
             fi
       jobs:
-        - name: Build calico/tinygo image
+        - name: Build and test calico/tinygo
           commands:
             - make -C images calico-tinygo-image
-        - name: wasm-acid (real-consumer compile against freshly-built image)
-          commands:
-            # The wasm-acid fixture imports github.com/wasilibs/{go-re2,
-            # go-libinjection} — the prebuilt-wasm-static-archive consumers
-            # that the gateway/coraza-wasm WAF actually depends on. A trivial
-            # smoke (`package main; func main(){}`) does NOT exercise the
-            # wasm-side libc/libc++ ABI; this acid does. Catches a TinyGo or
-            # wasi-libc bump that breaks downstream WAF consumers at
-            # toolchain-image build time.
-            - make -C images calico-tinygo-image
+            # Acid-compile the wasm-acid fixture against the just-built image.
+            # Fixture imports github.com/wasilibs/{go-re2, go-libinjection} —
+            # the prebuilt-wasm-static-archive consumers gateway/coraza-wasm
+            # depends on. A trivial smoke does NOT exercise the wasm-side
+            # libc/libc++ ABI; this acid does. Catches TinyGo or wasi-libc
+            # bumps that break downstream WAF consumers.
             - |
               docker run --rm \
                 -v "$(pwd)/images/calico-tinygo/test/wasm-acid:/src" \
