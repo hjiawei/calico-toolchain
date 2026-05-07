@@ -1,4 +1,4 @@
-module wasm-acid
+module fixture
 
 go 1.23
 

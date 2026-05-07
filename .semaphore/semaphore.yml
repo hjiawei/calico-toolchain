@@ -130,19 +130,21 @@ blocks:
         - name: Build and test calico/tinygo
           commands:
             - make -C images calico-tinygo-image
-            # Acid-compile the wasm-acid fixture against the just-built image.
-            # Fixture imports github.com/wasilibs/{go-re2, go-libinjection} —
+            # Compile the test fixture against the just-built image. The
+            # fixture imports github.com/wasilibs/{go-re2, go-libinjection} —
             # the prebuilt-wasm-static-archive consumers gateway/coraza-wasm
             # depends on. A trivial smoke does NOT exercise the wasm-side
-            # libc/libc++ ABI; this acid does. Catches TinyGo or wasi-libc
-            # bumps that break downstream WAF consumers.
+            # libc/libc++ ABI because TinyGo's stdlib provides everything;
+            # this fixture forces those archives in. Catches TinyGo or
+            # wasi-libc bumps that break downstream WAF consumers.
+            #
             # The Makefile builds the image as tinygo:latest-amd64 locally
             # before retagging it as calico/tinygo:${branch}-amd64 for the
             # registry. Use the local tag here — calico/tinygo:latest-amd64
             # does not exist (registry retag uses branch, not "latest").
             - |
               docker run --rm \
-                -v "$(pwd)/images/calico-tinygo/test/wasm-acid:/src" \
+                -v "$(pwd)/images/calico-tinygo/test/fixture:/src" \
                 -w /src \
                 tinygo:latest-amd64 \
                 sh -c 'go mod download && \
@@ -150,5 +152,5 @@ blocks:
                     -target=wasip1 \
                     -gc=precise -opt=2 -scheduler=none \
                     -tags="nottinygc_envoy memoize_builders" \
-                    -o /tmp/wasm-acid.wasm . && \
-                  file /tmp/wasm-acid.wasm | grep -q "WebAssembly"'
+                    -o /tmp/fixture.wasm . && \
+                  file /tmp/fixture.wasm | grep -q "WebAssembly"'

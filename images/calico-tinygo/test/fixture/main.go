@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Tigera, Inc. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// wasm-acid exercises the calico/tinygo image against the failure class that
-// PR 818 originally misdiagnosed: wasm-side ABI mismatch between TinyGo's
-// bundled wasi-libc and the prebuilt static archives shipped inside wasilibs
-// Go modules. A trivial smoke fixture (`package main; func main(){}`) does
-// NOT catch this — TinyGo's stdlib provides everything the smoke needs.
+// fixture exercises the calico/tinygo image against the failure class
+// where TinyGo's bundled wasi-libc and the prebuilt static archives shipped
+// inside wasilibs Go modules disagree on the libc/libc++ ABI. A trivial
+// smoke (`package main; func main(){}`) does NOT catch this — TinyGo's
+// stdlib provides everything the smoke needs.
 //
 // The regression only fires when wasm-ld has to resolve symbols out of
 // vendored `wasilibs/<lib>/wasm/*.a` archives. This fixture forces those
@@ -17,7 +17,7 @@
 // toolchain-image build time rather than in a downstream WAF rebuild.
 //
 // Build flags must match the gateway/coraza-wasm production set; see
-// .semaphore/semaphore.yml block "calico/tinygo wasm-acid" for invocation.
+// .semaphore/semaphore.yml block "calico/tinygo image" for invocation.
 package main
 
 import (
@@ -37,5 +37,5 @@ func main() {
 		return
 	}
 
-	println("calico/tinygo wasm-acid OK")
+	println("calico/tinygo fixture OK")
 }
