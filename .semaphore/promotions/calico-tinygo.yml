@@ -27,6 +27,19 @@ blocks:
       when: "branch = 'master' AND change_in('/images/calico-tinygo/')"
     task:
       jobs:
-        - name: Publish amd64
+        - name: Publish per-arch
           commands:
-            - if [ -z "${SEMAPHORE_GIT_PR_NUMBER}" ]; then make -C images calico-tinygo-cd CONFIRM=true; fi
+            - if [ -z "${SEMAPHORE_GIT_PR_NUMBER}" ]; then make -C images calico-tinygo-cd ARCH=$ARCH CONFIRM=true; fi
+          matrix:
+            - env_var: ARCH
+              values: ["amd64", "arm64"]
+  - name: Publish calico/tinygo multi-arch manifest
+    dependencies:
+      - Publish calico/tinygo image
+    run:
+      when: "branch = 'master' AND change_in('/images/calico-tinygo/')"
+    task:
+      jobs:
+        - name: Manifest
+          commands:
+            - if [ -z "${SEMAPHORE_GIT_PR_NUMBER}" ]; then make -C images push-calico-tinygo-manifests CONFIRM=true; fi

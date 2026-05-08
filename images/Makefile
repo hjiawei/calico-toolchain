@@ -128,23 +128,29 @@ push-calico-rust-build-manifests: var-require-one-of-CONFIRM-DRYRUN var-require-
 	$(MAKE) BUILD_IMAGES=$(CALICO_RUST_BUILD) push-manifests IMAGETAG=$(BRANCH_NAME) EXCLUDEARCH="$(EXCLUDEARCH)"
 
 ################################################################################
-# Calico tinygo image with TinyGo + Go for WebAssembly builds (amd64 only —
-# wasm output is architecture-agnostic so a single host arch suffices).
+# Calico tinygo image with TinyGo + Go for WebAssembly builds (amd64 + arm64
+# — TinyGo upstream does not publish Linux ppc64le/s390x tarballs).
 ################################################################################
 
 CALICO_TINYGO_IMAGETAG ?= latest
 
 .PHONY: calico-tinygo-image
 calico-tinygo-image: register
-	$(DOCKER_BUILD) -t $(CALICO_TINYGO):latest-amd64 -f calico-tinygo/Dockerfile calico-tinygo/
-	$(MAKE) BUILD_IMAGES=$(CALICO_TINYGO) retag-build-images-with-registries VALIDARCHES=amd64 IMAGETAG=$(CALICO_TINYGO_IMAGETAG)
+	$(DOCKER_BUILD) -t $(CALICO_TINYGO):latest-$(ARCH) -f calico-tinygo/Dockerfile calico-tinygo/
+	$(MAKE) BUILD_IMAGES=$(CALICO_TINYGO) retag-build-images-with-registries VALIDARCHES=$(ARCH) IMAGETAG=$(CALICO_TINYGO_IMAGETAG)
 
 .PHONY: calico-tinygo-image-all
-calico-tinygo-image-all: calico-tinygo-image
+calico-tinygo-image-all: $(addprefix sub-calico-tinygo-image-,amd64 arm64)
+sub-calico-tinygo-image-%:
+	$(MAKE) calico-tinygo-image ARCH=$*
 
 .PHONY: calico-tinygo-cd
 calico-tinygo-cd: calico-tinygo-image var-require-one-of-CONFIRM-DRYRUN var-require-all-BRANCH_NAME
-	$(MAKE) BUILD_IMAGES=$(CALICO_TINYGO) retag-build-images-with-registries push-images-to-registries IMAGETAG=$(BRANCH_NAME) VALIDARCHES=amd64
+	$(MAKE) BUILD_IMAGES=$(CALICO_TINYGO) retag-build-images-with-registries push-images-to-registries IMAGETAG=$(BRANCH_NAME) VALIDARCHES=$(ARCH)
+
+.PHONY: push-calico-tinygo-manifests
+push-calico-tinygo-manifests: var-require-one-of-CONFIRM-DRYRUN var-require-all-BRANCH_NAME
+	$(MAKE) BUILD_IMAGES=$(CALICO_TINYGO) push-manifests IMAGETAG=$(BRANCH_NAME) EXCLUDEARCH="ppc64le s390x"
 
 ################################################################################
 # Clean up
