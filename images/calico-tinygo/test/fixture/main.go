@@ -1,39 +1,58 @@
 // Copyright (c) 2026 Tigera, Inc. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// fixture exercises the calico/tinygo image against the failure class
-// where TinyGo's bundled wasi-libc and the prebuilt static archives shipped
-// inside wasilibs Go modules disagree on the libc/libc++ ABI. A trivial
-// smoke (`package main; func main(){}`) does NOT catch this — TinyGo's
-// stdlib provides everything the smoke needs.
+// fixture exercises the calico/tinygo image against two failure classes:
 //
-// The regression only fires when wasm-ld has to resolve symbols out of
-// vendored `wasilibs/<lib>/wasm/*.a` archives. This fixture forces those
-// archives in by importing and calling go-re2 (libc++.a) and go-libinjection
-// (libinjection wasm static archive) — the same dependencies the
-// gateway/coraza-wasm consumer pulls in. If a future TinyGo bump breaks
-// either prebuilt archive's libc/libc++ ABI, this fixture fails to compile
-// in the calico/tinygo Semaphore block and surfaces the regression at
-// toolchain-image build time rather than in a downstream WAF rebuild.
+//  1. wasm-ld undefined symbols. TinyGo's bundled wasi-libc and the
+//     prebuilt static archives shipped inside wasilibs Go modules must
+//     agree on the libc/libc++ ABI. A trivial smoke (`package main; func
+//     main(){}`) does NOT exercise this — TinyGo's stdlib provides every-
+//     thing the smoke needs. This fixture forces the wasilibs static
+//     archives in by importing and using github.com/wasilibs/go-re2 and
+//     github.com/wasilibs/go-libinjection.
 //
-// Build flags must match the gateway/coraza-wasm production set; see
-// .semaphore/semaphore.yml block "calico/tinygo image" for invocation.
+//  2. Runtime missing-import on Envoy. wasilibs's TinyGo path resolves
+//     cre2_* internally to a bundled wasm static archive (libcre2 baked
+//     into internal/wasm/). If a future go-re2 release stops shipping
+//     that archive (as v1.8.0+ did when wasilibs removed TinyGo support),
+//     wasm-ld emits the cre2_* calls as `env.cre2_*` imports and the
+//     wasm fails to instantiate on Envoy with `missing import: env.cre2_new`.
+//     The CI assertion in .semaphore/semaphore.yml catches this at
+//     toolchain-image build time by counting `<- env.cre2_*` imports
+//     in the produced wasm; non-zero is a fail.
+//
+// pattern + input are read from os.Args so TinyGo's `-opt=2` optimizer
+// cannot prove the calls dead and constant-fold them — without this the
+// optimizer eliminates the wasilibs calls entirely, the static archive
+// never gets pulled in, and both assertions silently pass on a wasm
+// that exercises nothing.
 package main
 
 import (
+	"os"
+
 	"github.com/wasilibs/go-libinjection"
 	"github.com/wasilibs/go-re2"
 )
 
 func main() {
-	re := re2.MustCompile(`^[a-z]+$`)
-	if !re.MatchString("hello") {
+	pattern := `^[a-z]+$`
+	input := "hello"
+	if len(os.Args) > 1 {
+		pattern = os.Args[1]
+	}
+	if len(os.Args) > 2 {
+		input = os.Args[2]
+	}
+
+	re := re2.MustCompile(pattern)
+	if !re.MatchString(input) {
 		println("re2: regex match regression")
 		return
 	}
 
-	if sqli, _ := libinjection.IsSQLi("' OR 1=1--"); !sqli {
-		println("libinjection: sqli detection regression")
+	if sqli, _ := libinjection.IsSQLi(input); sqli {
+		println("libinjection: unexpected sqli on benign input")
 		return
 	}
 

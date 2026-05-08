@@ -38,6 +38,7 @@ RUN set -eux; \
     tar -C /usr/local -xzf /tmp/go.tar.gz; \
     rm /tmp/go.tar.gz
 
+
 # TinyGo upstream tarball is statically linked (file: ELF static; ldd: not a
 # dynamic executable) so the AlmaLinux 9 base does not need to provide
 # matching libstdc++ / glibc — just untar to /usr/local.
